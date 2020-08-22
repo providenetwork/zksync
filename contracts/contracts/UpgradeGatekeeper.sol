@@ -12,8 +12,15 @@ import "./UpgradeableMaster.sol";
 contract UpgradeGatekeeper is UpgradeEvents, Ownable {
     using SafeMath for uint256;
 
-    /// @notice Array of addresses of upgradeable contracts managed by the gatekeeper
-    Upgradeable[] public managedContracts;
+
+    ///@notice NEW!! struct that collects upgradeable contracts for zksynch, governance and verifier
+    struct managedContracts {
+        Upgradeable governance;
+        Upgradeable verifier;
+        bytes32[] Process_type;
+        Upgradeable[] zksynchcontracts;
+    };   
+    
 
     /// @notice Upgrade mode statuses
     enum UpgradeStatus {
@@ -30,7 +37,7 @@ contract UpgradeGatekeeper is UpgradeEvents, Ownable {
 
     /// @notice Addresses of the next versions of the contracts to be upgraded (if element of this array is equal to zero address it means that appropriate upgradeable contract wouldn't be upgraded this time)
     /// @dev Will be empty in case of not active upgrade mode
-    address[] public nextTargets;
+    managedContracts public nextTargets;
 
     /// @notice Version id of contracts
     uint public versionId;
@@ -46,28 +53,51 @@ contract UpgradeGatekeeper is UpgradeEvents, Ownable {
         versionId = 0;
     }
 
-    /// @notice Adds a new upgradeable contract to the list of contracts managed by the gatekeeper
+    /// @notice Updated!! Adds a new upgradeable contract to the list of contracts managed by the gatekeeper.
+    /// @param uint8 contract_type 1  signals new governance contract, 2 new verifier and 3 new
+    /// @param bytes32 process_type is zero for contract_type 1 and 2 and mapps a zksynch contract to a specific business process aka set of constraints
     /// @param addr Address of upgradeable contract to add
-    function addUpgradeable(address addr) external {
+    function addUpgradeable(uint8 contract_type, bytes32 process_type, address addr) external {
         requireMaster(msg.sender);
+        require (contract_type < 4);
         require(upgradeStatus == UpgradeStatus.Idle, "apc11"); /// apc11 - upgradeable contract can't be added during upgrade
+        
+        if (contract_type = 1) {
+           managedContracts.governance = addr; 
+        }
 
-        managedContracts.push(Upgradeable(addr));
+        if (contract_type = 2) {
+           managedContracts.verifier = addr; 
+        }
+
+        if (contract_type = 3) {
+            managedContracts.Process_type.push(process_type);
+            managedContracts.zksynchcontracts.push(addr);
+        }
+
+        ///@notice OLD! managedContracts.push(Upgradeable(addr));
         emit NewUpgradable(versionId, addr);
     }
 
-    /// @notice Starts upgrade (activates notice period)
+    /// @notice Update!! Starts upgrade (activates notice period)
     /// @param newTargets New managed contracts targets (if element of this array is equal to zero address it means that appropriate upgradeable contract wouldn't be upgraded this time)
-    function startUpgrade(address[] calldata newTargets) external {
+    function startUpgrade(managedContracts calldata newTargets) external {
         requireMaster(msg.sender);
         require(upgradeStatus == UpgradeStatus.Idle, "spu11"); // spu11 - unable to activate active upgrade mode
-        require(newTargets.length == managedContracts.length, "spu12"); // spu12 - number of new targets must be equal to the number of managed contracts
+ /// No longer required    require(newTargets.length == managedContracts.length, "spu12"); // spu12 - number of new targets must be equal to the number of managed contracts
 
         uint noticePeriod = mainContract.getNoticePeriod();
         mainContract.upgradeNoticePeriodStarted();
         upgradeStatus = UpgradeStatus.NoticePeriod;
         noticePeriodFinishTimestamp = now.add(noticePeriod);
-        nextTargets = newTargets;
+/// no longer required        nextTargets = newTargets;
+        nextTargets.governance = newTargets.governance;
+        nextTargets.verifier = newTargets.verifier;
+        for (uint i = 0; i <= process_type.length-1; i++) {
+            nextTargets.Process_type.push(newTargets.Process_type[i]);
+            nextTargets.zksynchcontracts.push(newTargets.zksynchcontracts[i]);
+        }
+        
         emit NoticePeriodStart(versionId, newTargets, noticePeriod);
     }
 
@@ -99,19 +129,29 @@ contract UpgradeGatekeeper is UpgradeEvents, Ownable {
         }
     }
 
-    /// @notice Finishes upgrade
+    /// @notice Updated!! Finishes upgrade
     /// @param targetsUpgradeParameters New targets upgrade parameters per each upgradeable contract
     function finishUpgrade(bytes[] calldata targetsUpgradeParameters) external {
         requireMaster(msg.sender);
         require(upgradeStatus == UpgradeStatus.Preparation, "fpu11"); // fpu11 - unable to finish upgrade without preparation status active
-        require(targetsUpgradeParameters.length == managedContracts.length, "fpu12"); // fpu12 - number of new targets upgrade parameters must be equal to the number of managed contracts
+    ///    require(targetsUpgradeParameters.length == managedContracts.length, "fpu12"); // fpu12 - number of new targets upgrade parameters must be equal to the number of managed contracts
         require(mainContract.isReadyForUpgrade(), "fpu13"); // fpu13 - main contract is not ready for upgrade
         mainContract.upgradeFinishes();
 
-        for (uint64 i = 0; i < managedContracts.length; i++) {
-            address newTarget = nextTargets[i];
+        address newTarget = managedContracts.governance;
             if (newTarget != address(0)) {
-                managedContracts[i].upgradeTarget(newTarget, targetsUpgradeParameters[i]);
+                managedContracts.governance.upgradeTarget(newTarget, targetsUpgradeParameters[0]);
+            }
+
+        address newTarget = managedContracts.verifier;
+            if (newTarget != address(0)) {
+                managedContracts.verifier.upgradeTarget(newTarget, targetsUpgradeParameters[1]);
+            }
+
+        for (uint64 i = 2; i < managedContracts.zksynchcontracts.length; i++) {
+            address newTarget = nextTargets.zksynchcontracts[i-2];
+            if (newTarget != address(0)) {
+                managedContracts.zksynchcontracts[i-2].upgradeTarget(newTarget, targetsUpgradeParameters[i]);
             }
         }
         versionId++;

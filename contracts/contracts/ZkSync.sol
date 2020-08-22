@@ -26,36 +26,36 @@ contract ZkSync is UpgradeableMaster, Storage, Config, Events, ReentrancyGuard {
     // Upgrade functional
 
     /// @notice Notice period before activation preparation status of upgrade mode
-    function getNoticePeriod() external returns (uint) {
+    function getNoticePeriod(bytes32 process_type) external returns (uint) {
         return UPGRADE_NOTICE_PERIOD;
     }
 
     /// @notice Notification that upgrade notice period started
-    function upgradeNoticePeriodStarted() external {
+    function upgradeNoticePeriodStarted(bytes32 process_type) external {
 
     }
 
     /// @notice Notification that upgrade preparation status is activated
-    function upgradePreparationStarted() external {
+    function upgradePreparationStarted(bytes32 process_type) external {
         upgradePreparationActive = true;
         upgradePreparationActivationTime = now;
     }
 
     /// @notice Notification that upgrade canceled
-    function upgradeCanceled() external {
+    function upgradeCanceled(bytes32 process_type) external {
         upgradePreparationActive = false;
         upgradePreparationActivationTime = 0;
     }
 
     /// @notice Notification that upgrade finishes
-    function upgradeFinishes() external {
+    function upgradeFinishes(bytes32 process_type) external {
         upgradePreparationActive = false;
         upgradePreparationActivationTime = 0;
     }
 
     /// @notice Checks that contract is ready for upgrade
     /// @return bool flag indicating that contract is ready for upgrade
-    function isReadyForUpgrade() external returns (bool) {
+    function isReadyForUpgrade(bytes32 process_type) external returns (bool) {
         return !exodusMode;
     }
 
