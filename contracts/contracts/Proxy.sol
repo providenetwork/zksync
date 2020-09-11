@@ -13,7 +13,9 @@ contract Proxy is Upgradeable, UpgradeableMaster, Ownable {
     /// @notice Storage position of "target" (actual implementation address: keccak256('eip1967.proxy.implementation') - 1)
     bytes32 private constant targetPosition = 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
 
-    ///@notice this initializes the global value of Process_type to 0. This is only changed when the proxy for zkynch is called.
+    ///@notice this initializes the global value of Process_type to 0. This is only changed when the proxy for zkynch is called. 
+    ///It will hold the storage slot of the zksynch logic contract address. 
+    ///The caller has to make sure to provide a storage address slot that is not in conflict with another contract
     bytes32 private Process_type; 
 
     /// @notice Contract constructor

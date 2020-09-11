@@ -93,7 +93,7 @@ contract UpgradeGatekeeper is UpgradeEvents, Ownable {
 /// no longer required        nextTargets = newTargets;
         nextTargets.governance = newTargets.governance;
         nextTargets.verifier = newTargets.verifier;
-        for (uint i = 0; i <= process_type.length-1; i++) {
+        for (uint i = 0; i <= newTargets.Process_type.length-1; i++) {
             nextTargets.Process_type.push(newTargets.Process_type[i]);
             nextTargets.zksynchcontracts.push(newTargets.zksynchcontracts[i]);
         }
